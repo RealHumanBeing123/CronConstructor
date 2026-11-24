@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cron Constructor (offline)</title>
+<style>
+  :root {
+    --bg: #f7f6fa; --card: #ffffff; --text: #1f1d27; --muted: #605c70;
+    --line: #dedbe8; --accent: #6d28d9; --accent-dark: #5b21b6; --on-accent: #ffffff;
+    --code-bg: #17141f; --code-text: #ece6ff; --warn-bg: #fff6df; --warn-text: #7a5200;
+    --err-bg: #fde8e8; --err-text: #8a1c1c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131118; --card: #1c1925; --text: #e9e6f2; --muted: #a29db5;
+      --line: #2e2a3b; --accent: #a78bfa; --accent-dark: #c4b5fd; --on-accent: #12081f;
+      --code-bg: #0c0a11; --code-text: #ece6ff; --warn-bg: #3a2f12; --warn-text: #f1cf86;
+      --err-bg: #43191c; --err-text: #ffb4b4;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { margin: 0 0 4px; font-size: 28px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px;
+           background: var(--accent); color: var(--on-accent); vertical-align: middle; margin-left: 8px; }
+  .out { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 12px; }
+  input.expr { width: 100%; max-width: none; padding: 14px 16px; background: var(--code-bg); color: var(--code-text);
+               border: 2px solid transparent; border-radius: 8px; letter-spacing: .06em;
+               font: 24px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  input.expr.bad { border-color: #d14343; }
+  .desc { margin: 10px 2px 0; font-size: 18px; font-weight: 600; min-height: 28px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 8px; align-items: center; }
+  button { font: inherit; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--accent);
+           background: var(--accent); color: var(--on-accent); cursor: pointer; }
+  button:hover { background: var(--accent-dark); }
+  button.secondary { background: transparent; color: var(--accent-dark); }
+  button.secondary:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  button[hidden] { display: none; }
+  .bar label, .top label { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .warn, .err { border-radius: 6px; padding: 8px 12px; margin-top: 8px; font-size: 13px; }
+  .warn { background: var(--warn-bg); color: var(--warn-text); }
+  .err { background: var(--err-bg); color: var(--err-text); }
+  .warn[hidden], .err[hidden] { display: none; }
+  .warn ul, .err ul { margin: 0; padding-left: 18px; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 16px; margin: 4px 0 12px; }
+  summary { cursor: pointer; font-weight: 600; color: var(--accent-dark); }
+  table.t { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+  table.t td { padding: 5px 8px 5px 0; vertical-align: top; border-top: 1px solid var(--line); }
+  table.t td:first-child { width: 28%; }
+  table.t td.rel { color: var(--muted); text-align: right; white-space: nowrap; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-all; }
+  .top { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 4px 0 0; }
+  fieldset { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+             margin: 16px 0; padding: 4px 16px 10px; }
+  fieldset[hidden] { display: none; }
+  legend { font-weight: 600; padding: 0 8px; color: var(--accent-dark); }
+  .row { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 6px 16px; padding: 10px 0;
+         border-bottom: 1px solid var(--line); align-items: start; }
+  .row[hidden] { display: none; }
+  .row:last-child { border-bottom: 0; }
+  .row > .lbl { font-weight: 600; padding-top: 6px; }
+  .help { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .inline { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+  input[type=text], input[type=number], select, textarea { font: inherit; padding: 6px 8px;
+      border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+  input[type=text] { width: 100%; max-width: 620px; }
+  input[type=number] { width: 84px; }
+  select { max-width: 100%; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, .chip:focus-within
+      { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type=checkbox] { width: 18px; height: 18px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { position: relative; min-width: 38px; text-align: center; padding: 5px 9px; border: 1px solid var(--line);
+          border-radius: 6px; cursor: pointer; background: var(--bg); user-select: none; font-size: 13px; }
+  .chip input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .chip.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  pre#cronOut { margin: 6px 0 0; padding: 12px 14px; background: var(--code-bg); color: var(--code-text);
+            border-radius: 8px; overflow: auto; white-space: pre-wrap; word-break: break-all;
+            font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 24px; }
+  @media (max-width: 700px) { .out { position: static; } }
+  @media (max-width: 640px) { .row { grid-template-columns: minmax(0, 1fr); } .row > .lbl { padding-top: 0; }
+                              table.t td:first-child { width: auto; } input.expr { font-size: 18px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Cron Constructor <span class="badge">offline</span></h1>
+  <p class="sub">Build a cron schedule by clicking, or paste one to see it in plain English and when it runs next. Nothing is sent anywhere: this page makes no network requests.</p>
+
+  <div class="out">
+    <input id="expr" class="expr" type="text" spellcheck="false" autocomplete="off" aria-label="Cron expression">
+    <div id="desc" class="desc" aria-live="polite"></div>
+    <div class="bar">
+      <button id="copyExpr" type="button">Copy expression</button>
+      <button id="copyLine" type="button" class="secondary">Copy crontab line</button>
+      <label>Format
+        <select id="format">
+          <option value="5">Standard (5 fields)</option>
+          <option value="6">With seconds (6 fields)</option>
+        </select>
+      </label>
+      <label>Show times in
+        <select id="tz">
+          <option value="local">my time zone</option>
+          <option value="utc">UTC</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="h24"> 24-hour clock</label>
+    </div>
+    <div id="errs" class="err" hidden></div>
+    <div id="warns" class="warn" hidden></div>
+  </div>
+
+  <details id="runsBox" open>
+    <summary>Next runs</summary>
+    <div id="runsMeta" class="meta"></div>
+    <table class="t" id="runs"></table>
+  </details>
+
+  <details id="explain">
+    <summary>What each part does</summary>
+    <table class="t" id="exp"></table>
+  </details>
+
+  <div class="top">
+    <label>Quick start
+      <select id="preset"><option value="">Choose a recipe...</option></select>
+    </label>
+    <button id="reset" type="button" class="secondary">Reset all</button>
+  </div>
+
+  <div id="form"></div>
+
+  <fieldset id="cronSec">
+    <legend>Crontab line (optional)</legend>
+    <div class="row"><div class="lbl"><label for="cmd">Command</label></div><div>
+      <input type="text" id="cmd" placeholder="/usr/local/bin/backup.sh --quiet">
+      <div class="help">Use full paths: cron runs with a very small PATH. Any % is escaped for you, because cron treats a bare % as a line break.</div></div></div>
+    <div class="row"><div class="lbl"><label for="outMode">Output</label></div><div>
+      <select id="outMode">
+        <option value="">Default (cron emails any output)</option>
+        <option value="discard">Throw everything away (&gt;/dev/null 2&gt;&amp;1)</option>
+        <option value="errors">Keep only errors (&gt;/dev/null)</option>
+        <option value="log">Append to a log file</option>
+      </select></div></div>
+    <div class="row" id="logRow" hidden><div class="lbl"><label for="logFile">Log file</label></div><div>
+      <input type="text" id="logFile" placeholder="/var/log/backup.log"></div></div>
+    <div class="row"><div class="lbl"><label for="flock">Prevent overlapping runs</label></div><div>
+      <div class="inline"><input type="checkbox" id="flock"><input type="text" id="lockFile" placeholder="/tmp/backup.lock" style="max-width:300px"></div>
+      <div class="help">Uses flock so a new run is skipped while the previous one is still going.</div></div></div>
+    <div class="row"><div class="lbl"><label for="user">Run as user</label></div><div>
+      <input type="text" id="user" placeholder="root" style="max-width:200px">
+      <div class="help">Only for system files like /etc/crontab and /etc/cron.d/. Leave empty for your own crontab (crontab -e).</div></div></div>
+    <div class="row"><div class="lbl"><label for="mailto">Email output to</label></div><div>
+      <input type="text" id="mailto" placeholder="you@example.com  (empty value stops all email)"></div></div>
+    <div class="row"><div class="lbl"><label for="pathVar">PATH</label></div><div>
+      <input type="text" id="pathVar" placeholder="/usr/local/bin:/usr/bin:/bin"></div></div>
+    <div class="row"><div class="lbl"><label for="bash">Use bash</label></div><div>
+      <input type="checkbox" id="bash"><div class="help">Adds SHELL=/bin/bash. Cron uses /bin/sh by default.</div></div></div>
+    <div class="row"><div class="lbl"><label for="comment">Comment</label></div><div>
+      <input type="text" id="comment" placeholder="Nightly backup"></div></div>
+    <pre id="cronOut" aria-live="polite"></pre>
+    <div class="help">Add it with <code>crontab -e</code>. Lines starting with # are comments.</div>
+  </fieldset>
+
+  <footer>
+    This builds a schedule; it doesn't run anything. It follows the standard Linux/macOS cron (Vixie/cronie) rules: if both day-of-month and day-of-week are restricted, a run happens when <em>either</em> matches. Times in "Next runs" use your computer's clock; a real cron job uses the time zone of the machine it runs on.
+    Not supported: Quartz-only features such as <code>L</code>, <code>W</code>, <code>#</code> and a year field. Systems like GitHub Actions (always UTC), Kubernetes CronJobs and most hosting panels use the standard 5-field form. Check your scheduler's docs for its own quirks.
+  </footer>
+</main>
+
+<script>
+"use strict";
+
+var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+var DOWS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+var FIELDS = [
+  { id: "second", label: "Second", min: 0, max: 59, unit: "second", step: 30 },
+  { id: "minute", label: "Minute", min: 0, max: 59, unit: "minute", step: 5 },
+  { id: "hour", label: "Hour", min: 0, max: 23, unit: "hour", step: 2 },
+  { id: "dom", label: "Day of month", min: 1, max: 31, unit: "day", step: 2 },
+  { id: "month", label: "Month", min: 1, max: 12, unit: "month", step: 3, names: MONTHS },
+  { id: "dow", label: "Day of week", min: 0, max: 6, unit: "weekday", step: 2, names: DOWS }
+];
+var ABBR = { month: {}, dow: {} };
+MONTHS.forEach(function (n, i) { ABBR.month[n.slice(0, 3).toUpperCase()] = i + 1; });
+DOWS.forEach(function (n, i) { ABBR.dow[n.slice(0, 3).toUpperCase()] = i; });
+var MACROS = { "@yearly": "0 0 1 1 *", "@annually": "0 0 1 1 *", "@monthly": "0 0 1 * *", "@weekly": "0 0 * * 0",
+               "@daily": "0 0 * * *", "@midnight": "0 0 * * *", "@hourly": "0 * * * *" };
+var SHORTCUT_OF = { "0 0 1 1 *": "@yearly", "0 0 1 * *": "@monthly", "0 0 * * 0": "@weekly", "0 0 * * *": "@daily", "0 * * * *": "@hourly" };
+
+var PRESETS = {
+  "Every minute": "* * * * *",
+  "Every 5 minutes": "*/5 * * * *",
+  "Every 15 minutes": "*/15 * * * *",
+  "Every hour": "0 * * * *",
+  "Every 6 hours": "0 */6 * * *",
+  "Every day at midnight": "0 0 * * *",
+  "Every day at 2:30 AM": "30 2 * * *",
+  "Twice a day (8 AM and 8 PM)": "0 8,20 * * *",
+  "Weekdays at 9 AM": "0 9 * * 1-5",
+  "Weekdays every 15 minutes, 9 AM to 5 PM": "*/15 9-17 * * 1-5",
+  "Every Monday at 8 AM": "0 8 * * 1",
+  "Weekends at 10 AM": "0 10 * * 6,0",
+  "Every Sunday at 3 AM": "0 3 * * 0",
+  "First of the month at midnight": "0 0 1 * *",
+  "1st and 15th at noon": "0 12 1,15 * *",
+  "Every quarter (Jan, Apr, Jul, Oct)": "0 0 1 1,4,7,10 *",
+  "Once a year (New Year's Day)": "0 0 1 1 *",
+  "Every 30 seconds (6 fields)": "*/30 * * * * *",
+  "When the system starts": "@reboot"
+};
+
+// ---- parsing ---------------------------------------------------------------
+function val(tok, f) {
+  if (/^\d+$/.test(tok)) return parseInt(tok, 10);
+  var a = ABBR[f.id];
+  if (a) { var k = tok.toUpperCase(); if (Object.prototype.hasOwnProperty.call(a, k)) return a[k]; }
+  return null;
+}
+function rangeText(f) { return f.min + " to " + f.max + (f.id === "dow" ? " (0 or 7 is Sunday)" : ""); }
+
+// Expands one field's text into the list of values it matches.
+function parseField(text, f) {
+  var res = { values: [], error: null };
+  text = (text || "").trim();
+  if (!text) { res.error = f.label + " is empty."; return res; }
+  var max = f.id === "dow" ? 7 : f.max, seen = {}, toks = text.split(","), i;
+  for (i = 0; i < toks.length; i++) {
+    var t = toks[i].trim(), m, lo, hi, step = 1;
+    if (!t) { res.error = f.label + " has an empty item; check for a stray comma."; return res; }
+    if (/#/.test(t) || /^L(-\d+)?$/i.test(t) || /^\d+[LW]$/i.test(t) || /^LW$/i.test(t)) {
+      res.error = "\"" + t + "\" (L, W, # in " + f.label + ") only works in Quartz-style schedulers, not in standard cron."; return res;
+    }
+    m = /^([*?]|[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?)(?:\/(\d+))?$/.exec(t);
+    if (!m) { res.error = "\"" + t + "\" isn't a valid " + f.label.toLowerCase() + " value."; return res; }
+    if (m[2] !== undefined) {
+      step = parseInt(m[2], 10);
+      if (step < 1) { res.error = "The step in \"" + t + "\" must be 1 or more."; return res; }
+      if (step > f.max - f.min + 1) { res.error = "The step in \"" + t + "\" is bigger than the whole " + f.label.toLowerCase() + " range (" + f.min + " to " + f.max + "), so it can't repeat."; return res; }
+    }
+    if (m[1] === "?") {
+      if (f.id !== "dom" && f.id !== "dow") { res.error = "\"?\" only works in the day fields, not in " + f.label.toLowerCase() + "."; return res; }
+      lo = f.min; hi = f.max;
+    } else if (m[1] === "*") { lo = f.min; hi = f.max; }
+    else {
+      var parts = m[1].split("-");
+      lo = val(parts[0], f);
+      if (lo === null) { res.error = "\"" + parts[0] + "\" isn't a valid " + f.label.toLowerCase() + "."; return res; }
+      if (parts.length === 2) {
+        hi = val(parts[1], f);
+        if (hi === null) { res.error = "\"" + parts[1] + "\" isn't a valid " + f.label.toLowerCase() + "."; return res; }
+      } else hi = m[2] !== undefined ? max : lo;
+      if (lo < f.min || lo > max || hi < f.min || hi > max) {
+        res.error = f.label + " must be " + rangeText(f) + ", but \"" + t + "\" is outside that."; return res;
+      }
+      if (lo > hi) { res.error = "The range \"" + t + "\" goes backwards. Write it from low to high, or split it into two ranges."; return res; }
+    }
+    for (var v = lo; v <= hi; v += step) seen[f.id === "dow" ? v % 7 : v] = true;
+  }
+  res.values = Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
+  return res;
+}
+
+function blank(f) {
+  var d = f.id === "second" ? { mode: "list", list: [0] } : { mode: "every", list: [] };
+  d.step = f.step; d.from = f.min; d.to = f.max; d.rstep = ""; d.raw = "";
+  return d;
+}
+function uniqSorted(a) { return a.filter(function (v, i) { return a.indexOf(v) === i; }).sort(function (x, y) { return x - y; }); }
+
+// Turns field text back into the simple builder controls where possible.
+function modelFromText(text, f) {
+  var t = text.trim(), m, mod = blank(f);
+  if (/^[*?]$/.test(t)) { mod.mode = "every"; return mod; }
+  if ((m = /^\*\/(\d+)$/.exec(t))) {
+    if (+m[1] <= 1) { mod.mode = "every"; return mod; }
+    mod.mode = "step"; mod.step = +m[1]; return mod;
+  }
+  if ((m = /^([A-Za-z0-9]+)-([A-Za-z0-9]+)(?:\/(\d+))?$/.exec(t))) {
+    var a = val(m[1], f), b = val(m[2], f);
+    if (a !== null && b !== null && a <= f.max && b <= f.max) {
+      mod.mode = "range"; mod.from = a; mod.to = b; mod.rstep = m[3] ? +m[3] : ""; return mod;
+    }
+  } else {
+    var parts = t.split(","), nums = [], ok = true;
+    parts.forEach(function (p) {
+      var v = val(p.trim(), f);
+      if (v === null || v < f.min || v > (f.id === "dow" ? 7 : f.max)) ok = false; else nums.push(f.id === "dow" && v === 7 ? 0 : v);
+    });
+    if (ok && nums.length) { mod.mode = "list"; mod.list = uniqSorted(nums); return mod; }
+  }
+  mod.mode = "custom"; mod.raw = t; return mod;
+}
+
+function buildText(m, f) {
+  switch (m.mode) {
+    case "every": return "*";
+    case "step": return +m.step > 1 ? "*/" + (parseInt(m.step, 10) || 1) : "*";
+    case "range": return m.from + "-" + m.to + (+m.rstep > 1 ? "/" + parseInt(m.rstep, 10) : "");
+    case "list": return uniqSorted(m.list).join(",");
+    default: return (m.raw || "").trim();
+  }
+}
+
+function newState() {
+  var st = { format: "5", reboot: false, f: {} };
+  FIELDS.forEach(function (f) { st.f[f.id] = blank(f); });
+  return st;
+}
+
+// Reads text like "*/5 9-17 * * 1-5" (or an @shortcut) and returns {ok, errors, format, reboot, models}.
+function parseExpression(str) {
+  var s = (str || "").trim().replace(/\s+/g, " ");
+  if (!s) return { ok: false, errors: ["Type or paste a cron expression."] };
+  if (s.charAt(0) === "@") {
+    var key = s.toLowerCase();
+    if (key === "@reboot") return { ok: true, errors: [], reboot: true };
+    if (MACROS[key]) s = MACROS[key];
+    else return { ok: false, errors: ["Unknown shortcut \"" + s + "\". Supported: @reboot, @yearly, @annually, @monthly, @weekly, @daily, @midnight, @hourly."] };
+  }
+  var toks = s.split(" ");
+  if (toks.length !== 5 && toks.length !== 6) {
+    return { ok: false, errors: [toks.length === 7
+      ? "Seven fields looks like a Quartz expression with a year. This page handles 5 fields, or 6 with seconds first."
+      : "A cron expression has 5 fields (minute hour day-of-month month day-of-week), or 6 with seconds first. This one has " + toks.length + "."] };
+  }
+  var six = toks.length === 6, list = six ? FIELDS : FIELDS.slice(1), errors = [], models = {};
+  list.forEach(function (f, i) {
+    var p = parseField(toks[i], f);
+    if (p.error) errors.push(p.error); else models[f.id] = modelFromText(toks[i], f);
+  });
+  return { ok: errors.length === 0, errors: errors, format: six ? "6" : "5", reboot: false, models: models };
+}
+function applyParsed(st, p) {
+  st.reboot = !!p.reboot;
+  if (p.reboot) return;
+  st.format = p.format;
+  FIELDS.forEach(function (f) { st.f[f.id] = p.models[f.id] || blank(f); });
+}
+
+// ---- evaluation ------------------------------------------------------------
+function evalState(st) {
+  var ev = { infos: {}, errors: [], texts: [], six: st.format === "6" };
+  var list = ev.six ? FIELDS : FIELDS.slice(1);
+  list.forEach(function (f) {
+    var m = st.f[f.id], t = buildText(m, f), info = { f: f, model: m, text: t, values: [], error: null };
+    if (t === "") info.error = "Pick at least one " + f.unit + ".";
+    else { var p = parseField(t, f); info.values = p.values; info.error = p.error; }
+    if (info.error) ev.errors.push(info.error);
+    ev.infos[f.id] = info; ev.texts.push(t === "" ? "…" : t);
+  });
+  if (!ev.six) ev.infos.second = { f: FIELDS[0], model: blank(FIELDS[0]), text: "0", values: [0], error: null };
+  ev.reboot = !!st.reboot;
+  ev.expr = st.reboot ? "@reboot" : ev.texts.join(" ");
+  return ev;
+}
+function isAll(info) { return info.values.length === info.f.max - info.f.min + 1; }
+function isStar(info) { return /^[*?]/.test(info.text); }
+
+function nextRuns(ev, n, from, utc) {
+  if (ev.errors.length || ev.reboot) return [];
+  var I = ev.infos, set = function (a) { var o = {}; a.forEach(function (v) { o[v] = 1; }); return o; };
+  var monthSet = set(I.month.values), domSet = set(I.dom.values), dowSet = set(I.dow.values);
+  var domStar = isStar(I.dom), dowStar = isStar(I.dow), out = [];
+  var y = utc ? from.getUTCFullYear() : from.getFullYear(), m = utc ? from.getUTCMonth() : from.getMonth(), d = utc ? from.getUTCDate() : from.getDate();
+  for (var i = 0; i < 366 * 9 && out.length < n; i++) {
+    var c = new Date(Date.UTC(y, m, d + i)), cy = c.getUTCFullYear(), cm = c.getUTCMonth() + 1, cd = c.getUTCDate(), cw = c.getUTCDay();
+    if (!monthSet[cm]) continue;
+    var dm = !!domSet[cd], wm = !!dowSet[cw];
+    if (!((domStar || dowStar) ? (dm && wm) : (dm || wm))) continue;
+    for (var a = 0; a < I.hour.values.length && out.length < n; a++)
+      for (var b = 0; b < I.minute.values.length && out.length < n; b++)
+        for (var e = 0; e < I.second.values.length && out.length < n; e++) {
+          var h = I.hour.values[a], mi = I.minute.values[b], s = I.second.values[e], ts;
+          if (utc) ts = new Date(Date.UTC(cy, cm - 1, cd, h, mi, s));
+          else { ts = new Date(cy, cm - 1, cd, h, mi, s); if (ts.getHours() !== h || ts.getDate() !== cd) continue; }
+          if (ts.getTime() > from.getTime()) out.push(ts);
+        }
+  }
+  return out;
+}
+
+// ---- plain-English description -------------------------------------------------
+function pad(n) { return (n < 10 ? "0" : "") + n; }
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function joinAnd(a) { return a.length <= 1 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1]; }
+function listPhrase(values, label) {
+  var parts = [], i = 0;
+  while (i < values.length) {
+    var j = i; while (j + 1 < values.length && values[j + 1] === values[j] + 1) j++;
+    if (j - i >= 2) parts.push(label(values[i]) + " through " + label(values[j]));
+    else for (var k = i; k <= j; k++) parts.push(label(values[k]));
+    i = j + 1;
+  }
+  return joinAnd(parts);
+}
+function fmtHM(h, m, h24) {
+  if (h24) return pad(h) + ":" + pad(m);
+  if (m === 0 && h === 0) return "midnight";
+  if (m === 0 && h === 12) return "noon";
+  return (h % 12 === 0 ? 12 : h % 12) + ":" + pad(m) + " " + (h < 12 ? "AM" : "PM");
+}
+function hourLabel(h, h24) { return h24 ? pad(h) + ":00" : (h === 0 ? "midnight" : h === 12 ? "noon" : (h % 12) + " " + (h < 12 ? "AM" : "PM")); }
+
+function unitClause(info, unit) { // seconds or minutes
+  var m = info.model, v = info.values;
+  if (isAll(info)) return "every " + unit;
+  if (m.mode === "step") return "every " + m.step + " " + unit + "s";
+  if (m.mode === "range") return (+m.rstep > 1 ? "every " + m.rstep + " " + unit + "s" : "every " + unit) + " from " + m.from + " through " + m.to;
+  return "at " + unit + (v.length > 1 ? "s " : " ") + listPhrase(v, String);
+}
+function hourClause(info, h24) {
+  var m = info.model, v = info.values;
+  if (isAll(info)) return "";
+  if (m.mode === "step") return "every " + m.step + " hours";
+  if (m.mode === "range") {
+    if (+m.rstep > 1) return "every " + m.rstep + " hours from " + hourLabel(m.from, h24) + " through " + hourLabel(m.to, h24);
+    return "between " + fmtHM(m.from, 0, h24) + " and " + fmtHM(m.to, 59, h24);
+  }
+  return v.length === 1 ? "during the " + hourLabel(v[0], h24) + " hour" : "during the " + listPhrase(v, function (x) { return hourLabel(x, h24); }) + " hours";
+}
+
+function describe(ev, h24) {
+  if (ev.errors.length) return "";
+  if (ev.reboot) return "At system startup (when cron starts)";
+  var I = ev.infos, S = I.second, M = I.minute, H = I.hour, parts = [];
+  var secOn = ev.six && !(S.values.length === 1 && S.values[0] === 0);
+  var lk = function (i) { return (i.model.mode === "list" || i.model.mode === "custom") && !isAll(i); };
+  var concrete = lk(M) && lk(H) && (!secOn || lk(S)) && M.values.length * H.values.length * (secOn ? S.values.length : 1) <= 8;
+  var time;
+  if (concrete) {
+    var times = [];
+    H.values.forEach(function (h) { M.values.forEach(function (m) {
+      if (!secOn) times.push(fmtHM(h, m, h24));
+      else S.values.forEach(function (s) { times.push(h24 ? pad(h) + ":" + pad(m) + ":" + pad(s) : (h % 12 === 0 ? 12 : h % 12) + ":" + pad(m) + ":" + pad(s) + " " + (h < 12 ? "AM" : "PM")); });
+    }); });
+    time = "at " + joinAnd(times);
+  } else {
+    var sc = secOn ? unitClause(S, "second") : "", mc = unitClause(M, "minute"), hc = hourClause(H, h24);
+    if (sc) parts.push(sc);
+    if (!(secOn && isAll(M))) parts.push(hc === "" && /^at minute/.test(mc) ? mc + " past every hour" : mc);
+    if (hc) parts.push(hc);
+    if (secOn && isAll(M) && !hc && /^at second/.test(sc)) parts[0] = sc + " of every minute";
+    time = parts.join(", ");
+  }
+  var out = cap(time);
+  // day part
+  var D = I.dom, W = I.dow, dd = "", ww = "";
+  if (!isAll(D)) {
+    if (D.model.mode === "step") dd = "every " + D.model.step + " days";
+    else dd = "on day" + (D.values.length > 1 ? "s " : " ") + listPhrase(D.values, String) + " of the month";
+  }
+  if (!isAll(W)) ww = "on " + listPhrase(W.values, function (v) { return DOWS[v]; });
+  var day = dd && ww ? dd + " and " + ww : dd || ww;
+  if (day) out += ", " + day;
+  var Mo = I.month;
+  if (!isAll(Mo)) out += ", " + (Mo.model.mode === "step" ? "every " + Mo.model.step + " months" : "in " + listPhrase(Mo.values, function (v) { return MONTHS[v - 1]; }));
+  return out;
+}
+
+function fieldMeaning(info, h24) {
+  var f = info.f, m = info.model, v = info.values, lbl = String;
+  if (f.id === "month") lbl = function (x) { return MONTHS[x - 1]; };
+  if (f.id === "dow") lbl = function (x) { return DOWS[x]; };
+  if (f.id === "hour") lbl = function (x) { return hourLabel(x, h24); };
+  if (isAll(info)) return "every " + f.unit;
+  if (m.mode === "step") return "every " + m.step + " " + f.unit + "s (" + v.slice(0, 4).map(lbl).join(", ") + (v.length > 4 ? ", …" : "") + ")";
+  return listPhrase(v, lbl);
+}
+
+// ---- warnings --------------------------------------------------------------
+function warnings(ev, st, h24) {
+  var w = [];
+  if (ev.reboot) { w.push("@reboot runs once when the cron service starts, not when you log in. It isn't supported by every cron."); return w; }
+  if (ev.errors.length) return w;
+  var I = ev.infos;
+  if (!isStar(I.dom) && !isStar(I.dow)) w.push("Both day-of-month and day-of-week are set. In standard cron that means the job runs when EITHER one matches, not only when both do.");
+  [["minute", 60], ["hour", 24], ["second", 60]].forEach(function (p) {
+    var inf = I[p[0]];
+    if (ev.six || p[0] !== "second") if (inf.model.mode === "step" && p[1] % inf.model.step !== 0)
+      w.push("Every " + inf.model.step + " " + p[0] + "s doesn't divide evenly into " + p[1] + ", so the gap shrinks when the count restarts (after " + inf.values[inf.values.length - 1] + " it jumps back to 0).");
+  });
+  var D = I.dom;
+  if (!isStar(D)) {
+    var dim = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31], lateDays = D.values.filter(function (v) { return v >= 29; });
+    lateDays.forEach(function (v) {
+      var short = I.month.values.filter(function (mo) { return dim[mo - 1] < v; });
+      if (short.length && short.length < I.month.values.length)
+        w.push("Day " + v + " doesn't exist in " + joinAnd(short.map(function (mo) { return MONTHS[mo - 1]; })) + ", so the job skips " + (short.length === 1 ? "that month" : "those months") + (v === 29 && short.length === 1 ? " in years that aren't leap years" : "") + ".");
+    });
+  }
+  var nr = nextRuns(ev, 1, new Date(), true);
+  if (!nr.length) w.push("This schedule never runs: the day and month you picked don't occur together (for example February 30).");
+  if (ev.six) w.push("Seconds aren't part of standard crontab. Use the 6-field form only with schedulers that support it (for example Spring, node-cron or Quartz-like tools), and check whether they count seconds first.");
+  if (ev.six && I.second.model.mode === "every" && I.minute.model.mode === "every" && I.hour.model.mode === "every") w.push("This runs every single second, 86,400 times a day.");
+  else if (!ev.six && isAll(I.minute) && isAll(I.hour)) w.push("This runs every minute, 1,440 times a day.");
+  if (!isAll(I.hour) && I.hour.values.some(function (h) { return h === 1 || h === 2; })) w.push("Jobs scheduled around 1 to 3 AM can be skipped or run twice when daylight saving time starts or ends in some time zones.");
+  return w;
+}
+
+// ---- crontab block ---------------------------------------------------------------
+function crontabBlock(ev, o) {
+  var lines = [], notes = [];
+  var cmd = (o.cmd || "").trim();
+  if (!cmd) cmd = "/path/to/your-command";
+  var esc = cmd.replace(/(^|[^\\])%/g, "$1\\%").replace(/(^|[^\\])%/g, "$1\\%");
+  if (esc !== cmd) notes.push("Each % in your command was escaped as \\%, because cron treats a bare % as a line break.");
+  if (o.flock) esc = "flock -n " + ((o.lockFile || "").trim() || "/tmp/job.lock") + " " + esc;
+  if (o.outMode === "discard") esc += " >/dev/null 2>&1";
+  else if (o.outMode === "errors") esc += " >/dev/null";
+  else if (o.outMode === "log") esc += " >> " + ((o.logFile || "").trim() || "/var/log/job.log") + " 2>&1";
+  if (/^[^\/~$]/.test(cmd) && cmd.indexOf("/") < 0 && o.cmd && o.cmd.trim()) notes.push("The command doesn't start with a full path. Cron has a very short PATH, so use the full path (find it with: which " + cmd.split(/\s+/)[0] + ").");
+  if ((o.comment || "").trim()) lines.push("# " + o.comment.trim());
+  if (o.bash) lines.push("SHELL=/bin/bash");
+  if ((o.pathVar || "").trim()) lines.push("PATH=" + o.pathVar.trim());
+  if (o.mailto !== undefined && o.mailto !== "") lines.push("MAILTO=" + o.mailto.trim());
+  var user = (o.user || "").trim();
+  lines.push(ev.expr + " " + (user && ev.expr.charAt(0) !== "…" ? user + " " : "") + esc);
+  return { text: lines.join("\n"), notes: notes };
+}
+
+// ---- UI ------------------------------------------------------------------
+if (typeof document !== "undefined") {
+  var $ = function (id) { return document.getElementById(id); };
+  var st = newState(), rowEls = {}, bodyEls = {}, lastLine = "", exprBad = false;
+  function make(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  function h24() { return $("h24").checked; }
+  function touch() { st.reboot = false; }
+  function nameOf(f, v) { return f.names ? f.names[f.id === "month" ? v - 1 : v] : String(v); }
+  function optLabel(f, v) {
+    if (f.id === "hour") return v + " (" + hourLabel(v, false) + ")";
+    return f.names ? nameOf(f, v) + " (" + v + ")" : String(v);
+  }
+  function valueSelect(f, cur, onch) {
+    var s = make("select");
+    for (var v = f.min; v <= f.max; v++) s.appendChild(new Option(optLabel(f, v), v));
+    s.value = cur; s.addEventListener("change", function () { onch(+s.value); });
+    return s;
+  }
+  var MODES = function (f) {
+    var u = f.unit;
+    return [["every", "Every " + u], ["step", "Every N " + u + "s"], ["range", "Between two values"], ["list", "Specific " + u + "s"], ["custom", "Custom text"]];
+  };
+
+  function renderBody(f) {
+    var body = bodyEls[f.id], m = st.f[f.id];
+    body.textContent = "";
+    var u = f.unit;
+    if (m.mode === "every") body.appendChild(make("div", "help", "Runs on every " + u + "."));
+    else if (m.mode === "step") {
+      var w = make("div", "inline");
+      w.appendChild(make("span", "", "Every"));
+      var n = make("input"); n.type = "number"; n.min = 2; n.max = f.max; n.value = m.step;
+      var hint = make("div", "help");
+      var upd = function () { var v = []; for (var x = f.min; x <= f.max && v.length < 5; x += Math.max(2, +m.step || 2)) v.push(x); hint.textContent = "Starts at " + f.min + ": " + v.join(", ") + (v.length >= 5 ? ", …" : ""); };
+      n.addEventListener("input", function () { m.step = Math.max(2, parseInt(n.value, 10) || 2); touch(); upd(); update(); });
+      w.appendChild(n); w.appendChild(make("span", "", u + "s")); body.appendChild(w); body.appendChild(hint); upd();
+    } else if (m.mode === "range") {
+      var r = make("div", "inline");
+      r.appendChild(make("span", "", "From"));
+      r.appendChild(valueSelect(f, m.from, function (v) { m.from = v; touch(); update(); }));
+      r.appendChild(make("span", "", "through"));
+      r.appendChild(valueSelect(f, m.to, function (v) { m.to = v; touch(); update(); }));
+      r.appendChild(make("span", "", "every"));
+      var rs = make("input"); rs.type = "number"; rs.min = 1; rs.placeholder = "1"; rs.value = m.rstep;
+      rs.addEventListener("input", function () { m.rstep = rs.value === "" ? "" : Math.max(1, parseInt(rs.value, 10) || 1); touch(); update(); });
+      r.appendChild(rs); r.appendChild(make("span", "", u + "(s), optional"));
+      body.appendChild(r);
+    } else if (m.mode === "list") {
+      var g = make("div", "grid");
+      for (var v = f.min; v <= f.max; v++) (function (v) {
+        var lab = make("label", "chip"), cb = make("input"); cb.type = "checkbox";
+        cb.checked = m.list.indexOf(v) > -1; lab.classList.toggle("on", cb.checked);
+        lab.title = f.id === "hour" ? hourLabel(v, false) : (f.names ? nameOf(f, v) : "");
+        cb.addEventListener("change", function () {
+          m.list = cb.checked ? uniqSorted(m.list.concat([v])) : m.list.filter(function (x) { return x !== v; });
+          lab.classList.toggle("on", cb.checked); touch(); update();
+        });
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(f.names ? nameOf(f, v).slice(0, 3) : (f.id === "hour" || f.id === "minute" || f.id === "second" ? pad(v) : String(v))));
+        g.appendChild(lab);
+      })(v);
+      body.appendChild(g);
+    } else {
+      var t = make("input"); t.type = "text"; t.value = m.raw; t.spellcheck = false;
+      t.placeholder = f.id === "minute" ? "0,15,30,45  or  10-40/5" : "any valid cron text";
+      t.addEventListener("input", function () { m.raw = t.value; touch(); update(); });
+      body.appendChild(t);
+      body.appendChild(make("div", "help", "Anything cron understands for this field: lists (1,15), ranges (1-5), steps (*/10, 0-30/5)" + (f.names ? " and names like " + f.names[1].slice(0, 3).toUpperCase() : "") + "."));
+    }
+  }
+
+  function renderFields() {
+    var host = $("form"); host.textContent = ""; rowEls = {};
+    FIELDS.forEach(function (f) {
+      var fs = make("fieldset"); fs.appendChild(make("legend", "", f.label + " (" + f.min + (f.id === "dow" ? "-6, Sunday is 0" : "-" + f.max) + ")"));
+      var row = make("div", "row"), lw = make("div", "lbl"), lb = make("label", "", "Run"); lb.htmlFor = "mode_" + f.id; lw.appendChild(lb);
+      var cell = make("div"), sel = make("select"); sel.id = "mode_" + f.id;
+      MODES(f).forEach(function (o) { sel.appendChild(new Option(o[1], o[0])); });
+      sel.value = st.f[f.id].mode;
+      sel.addEventListener("change", function () {
+        var m = st.f[f.id], t = buildText(m, f);
+        if (sel.value === "custom") m.raw = t === "" || t === "…" ? "" : t;
+        m.mode = sel.value; touch(); renderBody(f); update();
+      });
+      var body = make("div"); bodyEls[f.id] = body;
+      cell.appendChild(sel); cell.appendChild(body);
+      row.appendChild(lw); row.appendChild(cell); fs.appendChild(row);
+      host.appendChild(fs); rowEls[f.id] = fs;
+      renderBody(f);
+    });
+  }
+  function syncControls() { // after loading new state from the expression box or a recipe
+    FIELDS.forEach(function (f) { var s = $("mode_" + f.id); if (s) s.value = st.f[f.id].mode; renderBody(f); });
+    $("format").value = st.format;
+  }
+
+  function relTime(ms) {
+    var s = Math.round(ms / 1000);
+    if (s < 90) return "in " + s + " second" + (s === 1 ? "" : "s");
+    var m = Math.round(s / 60); if (m < 120) return "in " + m + " minutes";
+    var h = Math.round(m / 60); if (h < 48) return "in " + h + " hours";
+    var d = Math.round(h / 24); if (d < 60) return "in " + d + " days";
+    return "in about " + Math.round(d / 30) + " months";
+  }
+
+  function copyText(t, btn, label) {
+    var done = function () { btn.textContent = "Copied!"; setTimeout(function () { btn.textContent = label; }, 1500); };
+    var fb = function () {
+      var x = document.createElement("textarea"); x.value = t; x.style.position = "fixed"; x.style.opacity = "0";
+      document.body.appendChild(x); x.select(); try { document.execCommand("copy"); done(); } catch (e) {} document.body.removeChild(x);
+    };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(done, fb); else fb();
+  }
+
+  function showList(el, items) {
+    el.textContent = "";
+    if (!items.length) { el.hidden = true; return; }
+    el.hidden = false; var ul = make("ul"); items.forEach(function (t) { ul.appendChild(make("li", "", t)); }); el.appendChild(ul);
+  }
+
+  var lastEv = null;
+  function update(keepExprBox) {
+    var ev = evalState(st); lastEv = ev;
+    var six = st.format === "6";
+    rowEls.second.hidden = !six;
+    FIELDS.forEach(function (f) { rowEls[f.id].style.opacity = st.reboot ? ".45" : ""; });
+    if (!keepExprBox) { $("expr").value = ev.expr; $("expr").classList.remove("bad"); }
+    var sc = SHORTCUT_OF[ev.expr];
+    $("desc").textContent = ev.errors.length ? "" : describe(ev, h24()) + (sc && !six ? "" : "");
+    if (!exprBad) showList($("errs"), ev.errors);
+    var warns = ev.errors.length ? [] : warnings(ev, st, h24());
+    if (sc && !six && !ev.errors.length) warns.push("This schedule can also be written as " + sc + " in most crons.");
+
+    // next runs
+    var utc = $("tz").value === "utc", now = new Date(), runs = ev.errors.length ? [] : nextRuns(ev, 10, now, utc);
+    var tbl = $("runs"); tbl.textContent = "";
+    var fmt = new Intl.DateTimeFormat(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+      second: six ? "2-digit" : undefined, hour12: !h24(), timeZone: utc ? "UTC" : undefined, timeZoneName: "short" });
+    runs.forEach(function (d) {
+      var tr = make("tr"); tr.appendChild(make("td", "", fmt.format(d))); tr.appendChild(make("td", "rel", relTime(d.getTime() - now.getTime()))); tbl.appendChild(tr);
+    });
+    var meta = $("runsMeta");
+    if (ev.reboot) meta.textContent = "Runs once each time the cron service starts, so there are no clock times to show.";
+    else if (ev.errors.length) meta.textContent = "Fix the problem above to see run times.";
+    else if (!runs.length) meta.textContent = "No run found in the next 9 years.";
+    else {
+      var I = ev.infos, perDay = isAll(I.month) && isAll(I.dom) && isAll(I.dow) ? I.hour.values.length * I.minute.values.length * I.second.values.length : 0;
+      meta.textContent = "Shown in " + (utc ? "UTC" : "your time zone") + ". Cron itself uses the time zone of the machine it runs on." + (perDay ? " About " + perDay.toLocaleString() + " run" + (perDay === 1 ? "" : "s") + " per day." : "");
+    }
+
+    // explanation
+    var ex = $("exp"); ex.textContent = "";
+    var names = ["Field", "Value", "Meaning"];
+    var head = make("tr"); names.forEach(function (n) { var td = make("td", "", n); td.style.fontWeight = "600"; head.appendChild(td); }); ex.appendChild(head);
+    if (!ev.reboot && !ev.errors.length) {
+      (six ? FIELDS : FIELDS.slice(1)).forEach(function (f) {
+        var info = ev.infos[f.id], tr = make("tr"), c = make("td"), v = make("td");
+        c.textContent = f.label; v.appendChild(make("code", "", info.text)); tr.appendChild(c); tr.appendChild(v); tr.appendChild(make("td", "", fieldMeaning(info, h24()))); ex.appendChild(tr);
+      });
+    } else { var r0 = make("tr"); r0.appendChild(make("td", "", ev.reboot ? "@reboot" : "")); r0.appendChild(make("td", "", "")); r0.appendChild(make("td", "", ev.reboot ? "Runs once when cron starts." : "Fix the schedule to see the breakdown.")); ex.appendChild(r0); }
+
+    // crontab line
+    var o = { cmd: $("cmd").value, outMode: $("outMode").value, logFile: $("logFile").value, flock: $("flock").checked, lockFile: $("lockFile").value,
+      user: $("user").value, mailto: $("mailto").value, pathVar: $("pathVar").value, bash: $("bash").checked, comment: $("comment").value };
+    $("logRow").hidden = o.outMode !== "log";
+    $("cronSec").hidden = six;
+    $("copyLine").hidden = six;
+    var cb = crontabBlock(ev, o);
+    lastLine = cb.text; $("cronOut").textContent = cb.text;
+    if (!six && !ev.errors.length) cb.notes.forEach(function (n) { warns.push(n); });
+    showList($("warns"), warns);
+  }
+
+  function loadExpression(str) {
+    var p = parseExpression(str);
+    if (!p.ok) return p;
+    applyParsed(st, p); syncControls(); return p;
+  }
+
+  $("expr").addEventListener("input", function () {
+    var p = parseExpression($("expr").value);
+    exprBad = !p.ok;
+    if (p.ok) { applyParsed(st, p); syncControls(); $("expr").classList.remove("bad"); update(true); }
+    else { $("expr").classList.add("bad"); showList($("errs"), p.errors); $("desc").textContent = ""; }
+  });
+  $("expr").addEventListener("blur", function () { exprBad = false; update(false); });
+  $("format").addEventListener("change", function () { st.format = $("format").value; touch(); update(); });
+  $("tz").addEventListener("change", function () { update(); });
+  $("h24").addEventListener("change", function () { update(); });
+  ["cmd", "outMode", "logFile", "flock", "lockFile", "user", "mailto", "pathVar", "bash", "comment"].forEach(function (id) {
+    $(id).addEventListener("input", function () { update(true); });
+    $(id).addEventListener("change", function () { update(true); });
+  });
+  Object.keys(PRESETS).forEach(function (k) { $("preset").appendChild(new Option(k, k)); });
+  $("preset").addEventListener("change", function () {
+    var e = PRESETS[$("preset").value]; if (!e) return;
+    loadExpression(e); $("preset").value = ""; update();
+  });
+  $("reset").addEventListener("click", function () { st = newState(); syncControls(); update(); });
+  $("copyExpr").addEventListener("click", function () { copyText(lastEv ? lastEv.expr : "", $("copyExpr"), "Copy expression"); });
+  $("copyLine").addEventListener("click", function () { copyText(lastLine, $("copyLine"), "Copy crontab line"); });
+
+  renderFields();
+  $("format").value = st.format;
+  update();
+  setInterval(function () { if (document.activeElement !== $("expr")) update(true); }, 30000);
+}
+
+if (typeof module !== "undefined") module.exports = {
+  parseField: parseField, parseExpression: parseExpression, newState: newState, applyParsed: applyParsed, evalState: evalState,
+  nextRuns: nextRuns, describe: describe, warnings: warnings, crontabBlock: crontabBlock, buildText: buildText, FIELDS: FIELDS, PRESETS: PRESETS, fieldMeaning: fieldMeaning
+};
+</script>
+</body>
+</html>
